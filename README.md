@@ -126,6 +126,22 @@ Affirm.startCheckout(this, checkout, false);
         Toast.makeText(this, "Checkout Error: " + message, Toast.LENGTH_LONG).show();
     }
     ```
+
+### Checkout camera and microphone
+
+Checkout may request camera and microphone access for physical ID verification (`getUserMedia`). The SDK handles the WebView permission request and the Android runtime prompt. Merchants that need identity verification must declare the permissions in the **app** `AndroidManifest.xml` (do not rely on the SDK library manifest):
+
+```xml
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+<uses-feature android:name="android.hardware.camera" android:required="false" />
+<uses-feature android:name="android.hardware.microphone" android:required="false" />
+```
+
+`uses-feature android:required="false"` is required so Google Play does not filter out devices without a camera or microphone. Merchants that do not use identity verification can omit these declarations.
+
 ### Charge authorization
 
 Once the checkout has been successfully confirmed by the user, the AffirmCheckoutDelegate object will receive a checkout token. This token should be forwarded to your server, which should then use the token to authorize a charge on the user's account. For more details about the server integration, see our [API documentation](https://docs.affirm.com/Integrate_Affirm/Direct_API#3._Authorize_the_charge).

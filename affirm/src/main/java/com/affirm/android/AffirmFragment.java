@@ -1,5 +1,9 @@
 package com.affirm.android;
 
+import android.Manifest;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -8,6 +12,7 @@ import android.view.ViewGroup;
 import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
@@ -15,8 +20,11 @@ abstract class AffirmFragment extends Fragment implements AffirmWebChromeClient.
 
     protected static final String TAG_PREFIX = "AffirmFragment";
 
+    private static final int REQUEST_MEDIA_PERMISSION = 1;
+
     AffirmWebView webView;
     private View progressIndicator;
+    private AffirmWebChromeClient.MediaPermissionResultCallback pendingMediaCallback;
 
     abstract void initViews();
 
@@ -69,6 +77,12 @@ abstract class AffirmFragment extends Fragment implements AffirmWebChromeClient.
     }
 
     @Override
+    public void onDestroyView() {
+        pendingMediaCallback = null;
+        super.onDestroyView();
+    }
+
+    @Override
     public void onDestroy() {
         webView.destroyWebView();
         webView = null;
@@ -78,5 +92,63 @@ abstract class AffirmFragment extends Fragment implements AffirmWebChromeClient.
     @Override
     public void chromeLoadCompleted() {
         progressIndicator.setVisibility(View.GONE);
+    }
+
+    @Override
+    public void requestWebViewMediaPermissions(
+            @NonNull String[] androidPermissions,
+            @NonNull AffirmWebChromeClient.MediaPermissionResultCallback resultCallback) {
+        final Context context = getContext();
+        if (context == null
+                || Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                || hasAllPermissions(context, androidPermissions)) {
+            notifyMediaPermission(context, resultCallback);
+            return;
+        }
+
+        pendingMediaCallback = resultCallback;
+        requestPermissions(androidPermissions, REQUEST_MEDIA_PERMISSION);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (requestCode != REQUEST_MEDIA_PERMISSION || pendingMediaCallback == null) {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+            return;
+        }
+
+        final AffirmWebChromeClient.MediaPermissionResultCallback callback =
+                pendingMediaCallback;
+        pendingMediaCallback = null;
+        notifyMediaPermission(getContext(), callback);
+    }
+
+    private static void notifyMediaPermission(
+            @Nullable Context context,
+            @NonNull AffirmWebChromeClient.MediaPermissionResultCallback resultCallback) {
+        if (context == null) {
+            resultCallback.onResult(false, false);
+            return;
+        }
+        resultCallback.onResult(
+                hasPermission(context, Manifest.permission.CAMERA),
+                hasPermission(context, Manifest.permission.RECORD_AUDIO));
+    }
+
+    private static boolean hasAllPermissions(@NonNull Context context,
+                                             @NonNull String[] permissions) {
+        for (String permission : permissions) {
+            if (!hasPermission(context, permission)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean hasPermission(@NonNull Context context, @NonNull String permission) {
+        return ContextCompat.checkSelfPermission(context, permission)
+                == PackageManager.PERMISSION_GRANTED;
     }
 }

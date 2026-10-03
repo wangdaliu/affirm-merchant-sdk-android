@@ -25,6 +25,7 @@ class AffirmWebView extends WebView {
         getSettings().setJavaScriptEnabled(true);
         getSettings().setDomStorageEnabled(true);
         getSettings().setSupportMultipleWindows(true);
+        getSettings().setMediaPlaybackRequiresUserGesture(false);
         getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
         setVerticalScrollBarEnabled(false);
     }
